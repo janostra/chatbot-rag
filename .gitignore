@@ -1,0 +1,7 @@
+# Node
+node_modules/
+.env
+# Python
+__pycache__/
+*.pyc
+chroma_db/
