@@ -1,77 +1,138 @@
 # Chatbot RAG para Atención al Cliente
 
-Un chatbot con IA que responde preguntas clave sobre la empresa usando Retrieval-Augmented Generation (RAG).  
-Ideal para reemplazar ese empleado que sabe todo, pero sin café ni descansos.
+
+Asistente virtual con IA que responde preguntas sobre destinos, precios, paquetes turísticos y servicios.  
+Implementado con **RAG (Retrieval-Augmented Generation)** para recuperar información actualizada desde una base de conocimientos
 
 ---
 
 ## Descripción
 
-Este proyecto combina FastAPI, LangChain y Chroma para crear un chatbot capaz de responder consultas sobre la empresa basándose en documentos cargados (info, promociones, servicios, etc.). Además, integra ElevenLabs para texto-voz y reconocimiento de voz.
+Chatbot conversacional con inteligencia artificial que utiliza RAG (Retrieval-Augmented Generation) para proporcionar información precisa sobre paquetes turísticos, destinos, precios y servicios de la agencia
 
-El objetivo:  
-- Contestar solo preguntas relacionadas con la empresa (si no sabe, lo dice).  
-- Guardar info de clientes en base de datos para mejorar la experiencia.  
-- Comunicación por WhatsApp (próximamente).
+ Características Principales
 
+- 🔍 **Búsqueda semántica (Azure AI Search)** — Vector search + hybrid search  
+- 🧠 **IA conversacional (HuggingFace Mistral 7B)**  
+- 🗣️ **Text-to-Speech (Azure Speech)**  
+- 💾 **Historial persistente (Cosmos DB)**  
+- 🌐 **Arquitectura 100% cloud**  
+- 🎨 **Frontend moderno (HTML + Tailwind + JS)**  
+- 🔐 **Secrets seguros (Azure Key Vault)**  
 ---
 
 ## Estructura
 
-- `src/rag/`: Código para carga de documentos y servidor RAG en FastAPI.  
-- `src/controllers/`: Controladores para manejar mensajes.  
-- `src/services/`: Servicios para OpenAI, ElevenLabs y RAG.  
-- `src/routes/`: Definición de rutas HTTP.  
-- `data/`: Documentos de información de la empresa para RAG.  
+Frontend (HTML/JS)
+       ↓
+Backend Node.js (Express)
+       ↓
+Backend Python (FastAPI + RAG)
+       ↓
+HuggingFace (Mistral 7B) + Azure AI Search
+---
+
+## Stack Tecnológico
+# Frontend
+
+- HTML5  
+- Tailwind CSS  
+- JavaScript ES6  
+
+# Backend (Node.js)
+
+- Express.js  
+- Mongoose (Cosmos DB)  
+- Azure SDK  
+- Cognitive Services Speech SDK  
+
+# Backend (Python - RAG)
+
+- FastAPI  
+- LangChain  
+- Azure AI Search SDK  
+- HuggingFace 
+
+# Cloud Services (Azure)
+
+- Cosmos DB: Base de datos NoSQL (MongoDB API)
+- Azure AI Search: Vector database para RAG
+- Azure Speech Services: Text-to-Speech
 
 ---
 
 ## Instalación
+# Prerrequisitos
 
-1. Clonar repo:  
-   ```bash
-   git clone https://github.com/janostra/chatbot-rag.git
-   cd chatbot-rag
+- Node.js 18+ y npm
+- Python 3.11+
+- Azure CLI
+- Cuenta de Azure (Azure for Students recomendado)
+- Hugging Face Key
 
+1. Clonar el repositorio
+git clone  https://github.com/tu-usuario/chatbot-rag-azure.git
+cd chatbot-rag-azure
 
-2. Crear y activar entorno virtual:
+2. Instalar Azure CLI (una sola vez)
+     curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 
-    python -m venv venv
-    source venv/bin/activate  # Linux/Mac
-    .\venv\Scripts\activate   # Windows
+3. Login a Azure (una sola vez)
+     az login
 
+4. Configurar Azure Resources
+- Hacer ejecutable el script de setup
+     chmod +x setup-azure.sh
 
-3. Instalar dependencias:
-    pip install -r requirements.txt
+# Este script creará:
+- Resource Group
+- Cosmos DB (MongoDB API)
+- Azure AI Search
+- Speech Services
+- App Service Plan
 
+5. Configurar variables de entorno
+El script setup-azure.sh genera automáticamente un archivo .env con todas las credenciales.
 
-4. Configurar variables de entorno en .env:
-    OPENAI_API_KEY=tu_api_key_aqui
+## Ejecutar (esto crea todos los recursos en Azure)
+./setup-azure.sh
 
+6. Indexar documentos
 
-5. Cargar documentos para RAG:
-    python src/rag/loaddocs.py
+- cd backend-python
+- python -m venv venv
+- source venv/bin/activate
+- pip install -r requirements.txt
+- python index_documents.py
 
+7. Ejecutar localmente
 
-6. Levantar servidor:
-    uvicorn src.rag.rag_server:app --host 0.0.0.0 --port 8000 --reload
+# Terminal 1 (Backend Python):
+- cd backend-python
+- source venv/bin/activate
+- uvicorn app:app --reload --port 8000
 
+# Terminal 2 (Backend Node):
+- cd backend-node
+- npm install
+- npm start
 
-7. Iniciar backend del chatbot (Node.js):
-    npm install
-    npm run dev
+Abrir: http://localhost:3000
 
+## Uso
+# Ejemplos de preguntas
 
-Uso
-Enviar mensajes al endpoint /message (o interfaz WhatsApp cuando esté lista) y el bot responderá basado en la info cargada. Si la pregunta es irrelevante, responderá educadamente que no está preparado para eso.
+Usuario: "¿Qué destinos ofrecen?"
+Bot: Ofrecemos paquetes turísticos a Brasil (Florianópolis) y 
+     Cataratas del Iguazú en Argentina 🌴✈️
 
+Usuario: "¿Cuánto cuesta el viaje a Florianópolis?"
+Bot: Temporada baja desde USD 250 y temporada de verano desde 
+     USD 300. Incluye traslado, hospedaje y excursiones 💰
 
-Próximos pasos
-Integrar WhatsApp API para chat en vivo.
-
-Añadir base de datos para almacenar datos de clientes y consultas.
-
-Mejorar manejo de contextos y memoria conversacional.
+Usuario: "¿Cómo puedo reservar?"
+Bot: Contactanos por WhatsApp al 221 316 0988 o visitá nuestra 
+     oficina en La Plata 📞
 
 Licencia
 Este proyecto es open source, como tu mejor amigo que nunca te falla.
