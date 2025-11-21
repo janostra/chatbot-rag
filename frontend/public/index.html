@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat RAG Azure - Los Amigos Turismo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .dot-pulse span {
+      display: inline-block;
+      animation: pulse 1s infinite ease-in-out;
+    }
+    .dot-pulse span:nth-child(2) { animation-delay: 0.2s; }
+    .dot-pulse span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes pulse {
+      0%,100% { opacity: 0.2; transform: translateY(0px); }
+      50% { opacity: 1; transform: translateY(-3px); }
+    }
+  </style>
+</head>
+
+<body class="bg-gray-100 flex flex-col h-screen font-sans">
+
+  <!-- HEADER -->
+  <header class="bg-purple-600 text-white p-4 text-center text-2xl font-bold shadow-md">
+    🌴 Chat RAG Azure - Los Amigos Turismo 🚀
+  </header>
+
+  <!-- MAIN CHAT WINDOW -->
+  <main id="chat" class="flex-1 overflow-y-auto p-4 space-y-4">
+    <div class="bg-white text-gray-900 p-3 rounded-xl max-w-[70%] shadow">
+      ¡Hola! 👋 Soy tu asistente virtual. Pregúntame sobre nuestros paquetes turísticos a Brasil y Cataratas del Iguazú.
+    </div>
+  </main>
+
+  <!-- MESSAGE INPUT BAR -->
+  <div class="p-4 bg-white shadow-md flex gap-3 items-center">
+    <input
+      id="messageInput"
+      type="text"
+      placeholder="Escribe tu mensaje..."
+      class="flex-1 border rounded-lg px-4 py-2 focus:ring focus:ring-purple-300"
+    />
+
+    <button
+      id="sendBtn"
+      class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg"
+    >
+      Enviar
+    </button>
+
+    <button
+      id="voiceToggle"
+      class="bg-purple-400 hover:bg-purple-500 text-white px-3 py-2 rounded-lg"
+    >
+      🔊 Voz: ON
+    </button>
+  </div>
+
+  <script>
+    const chat = document.getElementById("chat");
+    const input = document.getElementById("messageInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const voiceBtn = document.getElementById("voiceToggle");
+
+    let voiceEnabled = true;
+    let conversationId = `conv_${Date.now()}`;
+
+    voiceBtn.addEventListener("click", () => {
+      voiceEnabled = !voiceEnabled;
+      voiceBtn.textContent = voiceEnabled ? "🔊 Voz: ON" : "🔇 Voz: OFF";
+    });
+
+    function addMessage(sender, text) {
+      const bubble = document.createElement("div");
+      bubble.className = sender === "user"
+        ? "bg-purple-600 text-white p-3 rounded-xl self-end max-w-[70%] ml-auto shadow"
+        : "bg-white text-gray-900 p-3 rounded-xl max-w-[70%] shadow";
+      bubble.innerHTML = text;
+      chat.appendChild(bubble);
+      chat.scrollTo({ top: chat.scrollHeight, behavior: "smooth" });
+    }
+
+    function addThinkingBubble() {
+      const bubble = document.createElement("div");
+      bubble.id = "thinkingBubble";
+      bubble.className = "bg-gray-300 text-gray-800 p-3 rounded-xl max-w-[40%] shadow dot-pulse";
+      bubble.innerHTML = `<span>.</span><span>.</span><span>.</span>`;
+      chat.appendChild(bubble);
+      chat.scrollTo({ top: chat.scrollHeight, behavior: "smooth" });
+    }
+
+    function removeThinkingBubble() {
+      const bubble = document.getElementById("thinkingBubble");
+      if (bubble) bubble.remove();
+    }
+
+    async function sendMessage() {
+      const text = input.value.trim();
+      if (!text) return;
+
+      addMessage("user", text);
+      input.value = "";
+      addThinkingBubble();
+
+      try {
+        const res = await fetch("/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: text, conversationId }),
+        });
+
+        removeThinkingBubble();
+
+        if (!res.ok) {
+          throw new Error(`Error: ${res.status}`);
+        }
+
+        const data = await res.json();
+        addMessage("bot", data.answer);
+
+        if (voiceEnabled) {
+          await speakText(data.answer);
+        }
+      } catch (error) {
+        removeThinkingBubble();
+        console.error("Error:", error);
+        addMessage("bot", "❌ Lo siento, hubo un error. Intenta de nuevo.");
+      }
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+    input.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") sendMessage();
+    });
+
+    async function speakText(text) {
+      try {
+        const response = await fetch("/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+
+        if (!response.ok) throw new Error("Error TTS");
+
+        const data = await response.json();
+        
+        if (data.success && data.audio) {
+          const audioBlob = base64ToBlob(data.audio, "audio/mp3");
+          const audioURL = URL.createObjectURL(audioBlob);
+          const audio = new Audio(audioURL);
+          audio.play();
+          audio.onended = () => URL.revokeObjectURL(audioURL);
+        }
+      } catch (error) {
+        console.error("Error TTS:", error);
+      }
+    }
+
+    function base64ToBlob(base64, contentType) {
+      const byteCharacters = atob(base64);
+      const byteArrays = [];
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteArrays.push(byteCharacters.charCodeAt(i));
+      }
+      return new Blob([new Uint8Array(byteArrays)], { type: contentType });
+    }
+  </script>
+</body>
+</html>
