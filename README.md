@@ -18,7 +18,6 @@ Chatbot conversacional con inteligencia artificial que utiliza RAG (Retrieval-Au
 - 💾 **Historial persistente (Cosmos DB)**  
 - 🌐 **Arquitectura 100% cloud**  
 - 🎨 **Frontend moderno (HTML + Tailwind + JS)**  
-- 🔐 **Secrets seguros (Azure Key Vault)**  
 ---
 
 ## Estructura
