@@ -86,7 +86,7 @@ Backend Node.js (Express + App Insights)
 
 ---
 
-## Instalación
+## 🧰 Stack Tecnológico
 
 ### Prerrequisitos
 
