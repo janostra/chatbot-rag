@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chat RAG Azure - Los Amigos Turismo</title>
+  <title>Los Amigos Turismo - Asistente Virtual</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     .dot-pulse span {
@@ -17,78 +17,188 @@
       0%,100% { opacity: 0.2; transform: translateY(0px); }
       50% { opacity: 1; transform: translateY(-3px); }
     }
+
+    .recording {
+      animation: recordPulse 1s infinite;
+    }
+
+    @keyframes recordPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    .fade-in {
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 
-<body class="bg-gray-100 flex flex-col h-screen font-sans">
+<body class="bg-gradient-to-br from-purple-50 via-white to-blue-50 flex flex-col h-screen font-sans">
 
   <!-- HEADER -->
-  <header class="bg-purple-600 text-white p-4 text-center text-2xl font-bold shadow-md">
-    🌴 Chat RAG Azure - Los Amigos Turismo 🚀
+  <header class="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-600 text-white p-4 shadow-lg">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold">🌴 Los Amigos Turismo</h1>
+        <p class="text-purple-200 text-sm">Tu asistente de viajes inteligente con IA</p>
+      </div>
+      <div class="flex gap-2 items-center">
+        <!-- Estadísticas en tiempo real -->
+        <div id="stats" class="bg-purple-800 bg-opacity-50 px-3 py-2 rounded-lg text-xs hidden md:block">
+          <span id="statsText">📊 Cargando...</span>
+        </div>
+        <!-- Botón de voz -->
+        <button
+          id="voiceToggle"
+          class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-all duration-200"
+          title="Activar/Desactivar respuestas de voz"
+        >
+          <span id="voiceIcon">🔊</span>
+        </button>
+        <!-- Botón de limpiar -->
+        <button
+          id="clearBtn"
+          class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all duration-200"
+          title="Limpiar chat"
+        >
+          🗑️
+        </button>
+      </div>
+    </div>
   </header>
 
   <!-- MAIN CHAT WINDOW -->
-  <main id="chat" class="flex-1 overflow-y-auto p-4 space-y-4">
-    <div class="bg-white text-gray-900 p-3 rounded-xl max-w-[70%] shadow">
-      ¡Hola! 👋 Soy tu asistente virtual. Pregúntame sobre nuestros paquetes turísticos a Brasil y Cataratas del Iguazú.
+  <main id="chat" class="flex-1 overflow-y-auto p-4 space-y-4 max-w-6xl mx-auto w-full">
+    <!-- Mensaje de bienvenida -->
+    <div class="bg-white text-gray-800 p-4 rounded-2xl shadow-md max-w-[80%] fade-in border-l-4 border-purple-500">
+      <p class="font-semibold text-purple-700 mb-2">¡Hola! 👋 Bienvenido a Los Amigos Turismo</p>
+      <p class="text-sm mb-2">Soy tu asistente virtual con IA. Puedo ayudarte con:</p>
+      <ul class="text-sm space-y-1 ml-4">
+        <li>• Información sobre destinos (Brasil, Cataratas)</li>
+        <li>• Precios y promociones</li>
+        <li>• Servicios incluidos en paquetes</li>
+        <li>• Formas de contacto y reservas</li>
+      </ul>
+      <p class="text-sm mt-2 text-purple-600">💡 Puedes escribir o usar el micrófono 🎤</p>
     </div>
   </main>
 
   <!-- MESSAGE INPUT BAR -->
-  <div class="p-4 bg-white shadow-md flex gap-3 items-center">
-    <input
-      id="messageInput"
-      type="text"
-      placeholder="Escribe tu mensaje..."
-      class="flex-1 border rounded-lg px-4 py-2 focus:ring focus:ring-purple-300"
-    />
+  <div class="bg-white shadow-2xl border-t border-gray-200 p-4">
+    <div class="max-w-6xl mx-auto">
+      <!-- Barra de controles -->
+      <div class="flex gap-2 items-end">
+        <!-- Área de texto -->
+        <div class="flex-1">
+          <textarea
+            id="messageInput"
+            rows="1"
+            placeholder="Escribe tu pregunta sobre viajes..."
+            class="w-full border-2 border-purple-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none transition-all"
+            style="max-height: 120px;"
+          ></textarea>
+        </div>
 
-    <button
-      id="sendBtn"
-      class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg"
-    >
-      Enviar
-    </button>
+        <!-- Botón de micrófono (STT) -->
+        <button
+          id="micBtn"
+          class="bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl"
+          title="Hablar con el micrófono"
+        >
+          <span id="micIcon">🎤</span>
+        </button>
 
-    <button
-      id="voiceToggle"
-      class="bg-purple-400 hover:bg-purple-500 text-white px-3 py-2 rounded-lg"
-    >
-      🔊 Voz: ON
-    </button>
+        <!-- Botón de enviar -->
+        <button
+          id="sendBtn"
+          class="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl"
+        >
+          <span>Enviar</span>
+          <span>📤</span>
+        </button>
+      </div>
+
+      <!-- Tips -->
+      <div class="mt-2 text-center">
+        <p class="text-xs text-gray-500">
+          💡 <kbd class="px-2 py-1 bg-gray-100 rounded">Enter</kbd> para enviar • 
+          <kbd class="px-2 py-1 bg-gray-100 rounded">Shift+Enter</kbd> para nueva línea • 
+          🎤 Click en micrófono para hablar
+        </p>
+      </div>
+    </div>
   </div>
 
   <script>
+    // ======================
+    // VARIABLES GLOBALES
+    // ======================
     const chat = document.getElementById("chat");
     const input = document.getElementById("messageInput");
     const sendBtn = document.getElementById("sendBtn");
     const voiceBtn = document.getElementById("voiceToggle");
+    const voiceIcon = document.getElementById("voiceIcon");
+    const clearBtn = document.getElementById("clearBtn");
+    const micBtn = document.getElementById("micBtn");
+    const micIcon = document.getElementById("micIcon");
+    const statsText = document.getElementById("statsText");
 
-    let voiceEnabled = true;
-    let conversationId = `conv_${Date.now()}`;
+    let voiceEnabled = localStorage.getItem("voiceEnabled") !== "false";
+    let conversationId = localStorage.getItem("conversationId") || `conv_${Date.now()}`;
+    let isProcessing = false;
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
 
-    voiceBtn.addEventListener("click", () => {
-      voiceEnabled = !voiceEnabled;
-      voiceBtn.textContent = voiceEnabled ? "🔊 Voz: ON" : "🔇 Voz: OFF";
-    });
+    // Actualizar UI de voz
+    updateVoiceUI();
 
-    function addMessage(sender, text) {
+    // ======================
+    // FUNCIONES DE UI
+    // ======================
+    function updateVoiceUI() {
+      voiceIcon.textContent = voiceEnabled ? "🔊" : "🔇";
+      voiceBtn.classList.toggle("bg-gray-500", !voiceEnabled);
+      localStorage.setItem("voiceEnabled", voiceEnabled);
+    }
+
+    function addMessage(sender, text, metadata = {}) {
       const bubble = document.createElement("div");
-      bubble.className = sender === "user"
-        ? "bg-purple-600 text-white p-3 rounded-xl self-end max-w-[70%] ml-auto shadow"
-        : "bg-white text-gray-900 p-3 rounded-xl max-w-[70%] shadow";
-      bubble.innerHTML = text;
+      bubble.className = `fade-in ${sender === "user"
+        ? "bg-gradient-to-br from-purple-600 to-purple-700 text-white p-4 rounded-2xl rounded-tr-sm self-end max-w-[70%] ml-auto shadow-lg"
+        : "bg-white text-gray-800 p-4 rounded-2xl rounded-tl-sm max-w-[80%] shadow-lg border-l-4 border-purple-400"}`;
+
+      let content = `<div class="whitespace-pre-wrap">${text.replace(/\n/g, "<br>")}</div>`;
+      
+      if (metadata.responseTime) {
+        content += `<div class="text-xs text-gray-500 mt-2">⚡ ${metadata.responseTime}ms</div>`;
+      }
+
+      bubble.innerHTML = content;
       chat.appendChild(bubble);
-      chat.scrollTo({ top: chat.scrollHeight, behavior: "smooth" });
+      chat.scrollTop = chat.scrollHeight;
     }
 
     function addThinkingBubble() {
       const bubble = document.createElement("div");
       bubble.id = "thinkingBubble";
-      bubble.className = "bg-gray-300 text-gray-800 p-3 rounded-xl max-w-[40%] shadow dot-pulse";
-      bubble.innerHTML = `<span>.</span><span>.</span><span>.</span>`;
+      bubble.className = "bg-purple-100 text-purple-600 p-4 rounded-2xl max-w-[50%] shadow-md fade-in flex items-center gap-3 border-l-4 border-purple-400";
+      bubble.innerHTML = `
+        <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+        <span class="font-medium">Pensando</span>
+        <div class="dot-pulse">
+          <span>•</span>
+          <span>•</span>
+          <span>•</span>
+        </div>
+      `;
       chat.appendChild(bubble);
-      chat.scrollTo({ top: chat.scrollHeight, behavior: "smooth" });
+      chat.scrollTop = chat.scrollHeight;
     }
 
     function removeThinkingBubble() {
@@ -96,45 +206,179 @@
       if (bubble) bubble.remove();
     }
 
+    // ======================
+    // EVENTOS
+    // ======================
+    voiceBtn.addEventListener("click", () => {
+      voiceEnabled = !voiceEnabled;
+      updateVoiceUI();
+    });
+
+    clearBtn.addEventListener("click", () => {
+      if (confirm("¿Seguro que quieres limpiar el chat?")) {
+        chat.innerHTML = "";
+        conversationId = `conv_${Date.now()}`;
+        localStorage.setItem("conversationId", conversationId);
+        location.reload();
+      }
+    });
+
+    input.addEventListener("input", () => {
+      input.style.height = "auto";
+      input.style.height = input.scrollHeight + "px";
+    });
+
+    sendBtn.addEventListener("click", sendMessage);
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    // ======================
+    // SPEECH-TO-TEXT (STT)
+    // ======================
+    micBtn.addEventListener("click", async () => {
+      if (!isRecording) {
+        // Iniciar grabación
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+          audioChunks = [];
+
+          mediaRecorder.ondataavailable = (e) => {
+            audioChunks.push(e.data);
+          };
+
+          mediaRecorder.onstop = async () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+            
+            // Convertir a base64
+            const reader = new FileReader();
+            reader.readAsDataURL(audioBlob);
+            reader.onloadend = async () => {
+              const base64Audio = reader.result.split(',')[1];
+              
+              // Enviar a servidor
+              micIcon.textContent = "⏳";
+              micBtn.disabled = true;
+              
+              try {
+                const res = await fetch("/stt", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ audioData: base64Audio })
+                });
+
+                const data = await res.json();
+                
+                if (data.success && data.text) {
+                  input.value = data.text;
+                  input.style.height = "auto";
+                  input.style.height = input.scrollHeight + "px";
+                  
+                  // Auto-enviar
+                  setTimeout(() => sendMessage(), 500);
+                } else {
+                  alert("No se pudo reconocer la voz. Intenta de nuevo.");
+                }
+              } catch (error) {
+                console.error("Error STT:", error);
+                alert("Error en reconocimiento de voz");
+              } finally {
+                micIcon.textContent = "🎤";
+                micBtn.disabled = false;
+              }
+            };
+          };
+
+          mediaRecorder.start();
+          isRecording = true;
+          micIcon.textContent = "⏹️";
+          micBtn.classList.add("bg-red-500", "recording");
+          micBtn.classList.remove("bg-green-500");
+        } catch (error) {
+          console.error("Error accediendo al micrófono:", error);
+          alert("No se pudo acceder al micrófono. Verifica los permisos.");
+        }
+      } else {
+        // Detener grabación
+        if (mediaRecorder && mediaRecorder.state !== "inactive") {
+          mediaRecorder.stop();
+          mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        }
+        isRecording = false;
+        micIcon.textContent = "🎤";
+        micBtn.classList.remove("bg-red-500", "recording");
+        micBtn.classList.add("bg-green-500");
+      }
+    });
+
+    // ======================
+    // ENVIAR MENSAJE
+    // ======================
     async function sendMessage() {
+      if (isProcessing) return;
+
       const text = input.value.trim();
       if (!text) return;
 
+      isProcessing = true;
+      sendBtn.disabled = true;
+      sendBtn.classList.add("opacity-50", "cursor-not-allowed");
+
       addMessage("user", text);
       input.value = "";
+      input.style.height = "auto";
+
       addThinkingBubble();
 
       try {
         const res = await fetch("/ask", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: text, conversationId }),
+          body: JSON.stringify({ 
+            query: text,
+            conversationId: conversationId
+          }),
         });
 
         removeThinkingBubble();
 
         if (!res.ok) {
-          throw new Error(`Error: ${res.status}`);
+          throw new Error(`Error del servidor: ${res.status}`);
         }
 
         const data = await res.json();
-        addMessage("bot", data.answer);
+        addMessage("bot", data.answer, { 
+          responseTime: data.responseTime 
+        });
 
+        // Text-to-Speech
         if (voiceEnabled) {
           await speakText(data.answer);
         }
+
+        // Actualizar stats
+        updateStats();
+
       } catch (error) {
         removeThinkingBubble();
         console.error("Error:", error);
-        addMessage("bot", "❌ Lo siento, hubo un error. Intenta de nuevo.");
+        addMessage("bot", "❌ Lo siento, hubo un error. Por favor intenta de nuevo.");
+      } finally {
+        isProcessing = false;
+        sendBtn.disabled = false;
+        sendBtn.classList.remove("opacity-50", "cursor-not-allowed");
+        input.focus();
       }
     }
 
-    sendBtn.addEventListener("click", sendMessage);
-    input.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") sendMessage();
-    });
-
+    // ======================
+    // TEXT-TO-SPEECH (TTS)
+    // ======================
     async function speakText(text) {
       try {
         const response = await fetch("/tts", {
@@ -143,7 +387,9 @@
           body: JSON.stringify({ text }),
         });
 
-        if (!response.ok) throw new Error("Error TTS");
+        if (!response.ok) {
+          throw new Error("Error TTS");
+        }
 
         const data = await response.json();
         
@@ -151,8 +397,14 @@
           const audioBlob = base64ToBlob(data.audio, "audio/mp3");
           const audioURL = URL.createObjectURL(audioBlob);
           const audio = new Audio(audioURL);
-          audio.play();
-          audio.onended = () => URL.revokeObjectURL(audioURL);
+          
+          audio.play().catch(err => {
+            console.error("Error reproduciendo audio:", err);
+          });
+
+          audio.onended = () => {
+            URL.revokeObjectURL(audioURL);
+          };
         }
       } catch (error) {
         console.error("Error TTS:", error);
@@ -167,6 +419,27 @@
       }
       return new Blob([new Uint8Array(byteArrays)], { type: contentType });
     }
+
+    // ======================
+    // ESTADÍSTICAS
+    // ======================
+    async function updateStats() {
+      try {
+        const res = await fetch("/stats");
+        const data = await res.json();
+        
+        statsText.textContent = `📊 ${data.conversationsLast24h} chats (24h) • ⚡ ${Math.round(data.avgResponseTime)}ms promedio`;
+      } catch (error) {
+        console.error("Error stats:", error);
+      }
+    }
+
+    // Actualizar stats cada 30 segundos
+    setInterval(updateStats, 30000);
+    updateStats();
+
+    // Focus inicial
+    input.focus();
   </script>
 </body>
 </html>
