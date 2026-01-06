@@ -142,7 +142,6 @@
     const clearBtn = document.getElementById("clearBtn");
     const micBtn = document.getElementById("micBtn");
     const micIcon = document.getElementById("micIcon");
-    const statsText = document.getElementById("statsText");
 
     let voiceEnabled = localStorage.getItem("voiceEnabled") !== "false";
     let conversationId = localStorage.getItem("conversationId") || `conv_${Date.now()}`;
@@ -151,7 +150,6 @@
     let audioChunks = [];
     let isRecording = false;
 
-    // Actualizar UI de voz
     updateVoiceUI();
 
     // ======================
