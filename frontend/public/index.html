@@ -48,10 +48,6 @@
         <p class="text-purple-200 text-sm">Tu asistente de viajes inteligente con IA</p>
       </div>
       <div class="flex gap-2 items-center">
-        <!-- Estadísticas en tiempo real -->
-        <div id="stats" class="bg-purple-800 bg-opacity-50 px-3 py-2 rounded-lg text-xs hidden md:block">
-          <span id="statsText">📊 Cargando...</span>
-        </div>
         <!-- Botón de voz -->
         <button
           id="voiceToggle"
@@ -146,7 +142,6 @@
     const clearBtn = document.getElementById("clearBtn");
     const micBtn = document.getElementById("micBtn");
     const micIcon = document.getElementById("micIcon");
-    const statsText = document.getElementById("statsText");
 
     let voiceEnabled = localStorage.getItem("voiceEnabled") !== "false";
     let conversationId = localStorage.getItem("conversationId") || `conv_${Date.now()}`;
@@ -155,7 +150,6 @@
     let audioChunks = [];
     let isRecording = false;
 
-    // Actualizar UI de voz
     updateVoiceUI();
 
     // ======================
@@ -361,9 +355,6 @@
           await speakText(data.answer);
         }
 
-        // Actualizar stats
-        updateStats();
-
       } catch (error) {
         removeThinkingBubble();
         console.error("Error:", error);
@@ -419,24 +410,6 @@
       }
       return new Blob([new Uint8Array(byteArrays)], { type: contentType });
     }
-
-    // ======================
-    // ESTADÍSTICAS
-    // ======================
-    async function updateStats() {
-      try {
-        const res = await fetch("/stats");
-        const data = await res.json();
-        
-        statsText.textContent = `📊 ${data.conversationsLast24h} chats (24h) • ⚡ ${Math.round(data.avgResponseTime)}ms promedio`;
-      } catch (error) {
-        console.error("Error stats:", error);
-      }
-    }
-
-    // Actualizar stats cada 30 segundos
-    setInterval(updateStats, 30000);
-    updateStats();
 
     // Focus inicial
     input.focus();

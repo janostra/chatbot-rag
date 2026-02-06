@@ -1,5 +1,6 @@
 fastapi
 uvicorn[standard]
+gunicorn==21.2.0
 langchain
 langchain-core
 langchain-community
@@ -8,7 +9,7 @@ langchain-text-splitters
 huggingface-hub
 sentence-transformers
 transformers
-torch
+torch --index-url https://download.pytorch.org/whl/cpu
 azure-search-documents
 azure-identity
 pydantic
