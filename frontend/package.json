@@ -1,6 +1,6 @@
 {
   "name": "chatbot-rag-azure",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Chatbot RAG con Azure - Proyecto Cloud Computing",
   "main": "server.js",
   "type": "module",
@@ -19,6 +19,8 @@
     "dotenv": "^16.3.1",
     "cors": "^2.8.5",
     "@azure/storage-blob": "^12.17.0",
+    "@azure/keyvault-secrets": "^4.7.0",
+    "@azure/identity": "^4.0.0",
     "applicationinsights": "^2.9.1",
     "multer": "^1.4.5-lts.1",
     "uuid": "^9.0.1"

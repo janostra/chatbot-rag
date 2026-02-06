@@ -236,7 +236,6 @@
     // ======================
     micBtn.addEventListener("click", async () => {
       if (!isRecording) {
-        // Iniciar grabación
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           mediaRecorder = new MediaRecorder(stream);
@@ -249,13 +248,11 @@
           mediaRecorder.onstop = async () => {
             const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
             
-            // Convertir a base64
             const reader = new FileReader();
             reader.readAsDataURL(audioBlob);
             reader.onloadend = async () => {
               const base64Audio = reader.result.split(',')[1];
               
-              // Enviar a servidor
               micIcon.textContent = "⏳";
               micBtn.disabled = true;
               
@@ -272,8 +269,6 @@
                   input.value = data.text;
                   input.style.height = "auto";
                   input.style.height = input.scrollHeight + "px";
-                  
-                  // Auto-enviar
                   setTimeout(() => sendMessage(), 500);
                 } else {
                   alert("No se pudo reconocer la voz. Intenta de nuevo.");
@@ -298,7 +293,6 @@
           alert("No se pudo acceder al micrófono. Verifica los permisos.");
         }
       } else {
-        // Detener grabación
         if (mediaRecorder && mediaRecorder.state !== "inactive") {
           mediaRecorder.stop();
           mediaRecorder.stream.getTracks().forEach(track => track.stop());
@@ -350,7 +344,6 @@
           responseTime: data.responseTime 
         });
 
-        // Text-to-Speech
         if (voiceEnabled) {
           await speakText(data.answer);
         }
@@ -378,9 +371,7 @@
           body: JSON.stringify({ text }),
         });
 
-        if (!response.ok) {
-          throw new Error("Error TTS");
-        }
+        if (!response.ok) throw new Error("Error TTS");
 
         const data = await response.json();
         

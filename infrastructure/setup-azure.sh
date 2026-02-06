@@ -9,7 +9,7 @@ echo "🚀 Configurando TODOS los recursos de Azure para Chatbot RAG PRO"
 
 # Variables
 RESOURCE_GROUP="rg-chatbot-rag"
-LOCATION="westus"
+LOCATION="westus3"
 TIMESTAMP=$(date +%s)
 COSMOS_ACCOUNT="cosmos-chatbot-${TIMESTAMP}"
 SEARCH_SERVICE="search-chatbot-${TIMESTAMP}"
@@ -186,7 +186,7 @@ NODE_ENV=development
 # ============================================
 # AZURE COSMOS DB (GRATIS - Permanente)
 # ============================================
-MONGO_URI=$MONGO_URI
+MONGO_URI="$MONGO_URI"
 
 # ============================================
 # AZURE SPEECH SERVICES (STT + TTS)
@@ -279,7 +279,7 @@ echo "5️⃣  Iniciar backend Python:"
 echo "    python app.py"
 echo ""
 echo "6️⃣  En otra terminal, instalar Node:"
-echo "    cd backend"
+echo "    cd frontend"
 echo "    npm install"
 echo ""
 echo "7️⃣  Iniciar servidor Node:"
@@ -291,4 +291,4 @@ echo ""
 echo "📊 Ver métricas en Application Insights:"
 echo "    https://portal.azure.com → $APPINSIGHTS"
 echo ""
-echo "🎉 ¡Todo listo! Tu chatbot está nivel PRO"
+echo "🎉 ¡Todo listo!"
