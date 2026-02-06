@@ -1,13 +1,13 @@
 # Chatbot RAG para Atención al Cliente - Los Amigos Turismo
 
 Asistente virtual empresarial con IA avanzada que responde preguntas sobre destinos, precios, paquetes turísticos y servicios.  
-Implementado con **RAG (Retrieval-Augmented Generation)** para recuperar información actualizada desde una base de conocimientos con **entrada y salida de voz bidireccional**.
+Implementado con **RAG (Retrieval-Augmented Generation)** para recuperar información actualizada desde una base de conocimientos con **entrada y salida de voz bidireccional** y auto-indexación de documentos y **deployment completo en Azure App Service (PaaS)**.
 
 ---
 
 ## Descripción
 
-Chatbot conversacional nivel enterprise con inteligencia artificial que utiliza RAG (Retrieval-Augmented Generation) para proporcionar información precisa sobre paquetes turísticos, destinos, precios y servicios de la agencia. Integra **6 servicios de Azure Cloud** con monitoreo en tiempo real y gestión inteligente de documentos.
+Chatbot conversacional nivel enterprise con inteligencia artificial que utiliza RAG (Retrieval-Augmented Generation) para proporcionar información precisa sobre paquetes turísticos, destinos, precios y servicios de la agencia. Integra **8 servicios de Azure Cloud** con monitoreo en tiempo real y gestión inteligente de documentos.
 
 ## Características Principales
 
@@ -21,25 +21,34 @@ Chatbot conversacional nivel enterprise con inteligencia artificial que utiliza 
 - 🌐 **Arquitectura 100% cloud** — Escalable y resiliente  
 - 🎨 **Frontend moderno (HTML + Tailwind + JS)** — UI/UX profesional  
 - 📈 **Estadísticas en vivo** — Dashboard con métricas actualizadas  
+- ⚡ **Auto-indexación** — Azure Function serverless
+- 🔐 **Panel de administración** — Interfaz separada para gestión
+- 🔑 **Azure Key Vault** — Gestión segura de secrets
+
 
 ---
 
 ## Arquitectura
 
 ```
-Usuario (Navegador)
+Usuario (Navegador) / Admin (Panel Administrativo)
        ↓
 Frontend (HTML/JS con STT/TTS)
        ↓
-Backend Node.js (Express + App Insights)
+Azure App Service Node.js (Express)
        ↓
 ├─> Cosmos DB (historial + analytics)
 ├─> Speech Services (STT + TTS bidireccional)
 ├─> Blob Storage (documentos)
-└─> Backend Python (FastAPI + RAG)
+├─> Azure Key Vault (secrets)
+└─> Azure App Service Python (FastAPI + RAG)
           ↓
     ├─> Hugging Face (Mistral 7B)
     └─> Azure AI Search (vector database)
+          ↓
+    Azure Function (auto-indexación)
+          ↓
+    Application Insights (telemetría)
 ```
 ---
 
@@ -60,7 +69,8 @@ Backend Node.js (Express + App Insights)
 - **Cognitive Services Speech SDK** — STT + TTS  
 - **Application Insights** — Telemetría y monitoreo  
 - **Multer** — Manejo de uploads de archivos  
-- **Blob Storage Client** — Gestión de documentos  
+- **Blob Storage Client** — Gestión de documentos 
+- **Key Vault SDK** — Gestión segura de secrets 
 
 ### Backend (Python - RAG)
 
@@ -69,6 +79,7 @@ Backend Node.js (Express + App Insights)
 - **Hugging Face Hub** — Acceso a modelos (Mistral 7B)  
 - **Azure AI Search SDK** — Búsqueda vectorial híbrida  
 - **Sentence Transformers** — Embeddings multilingües  
+- **Gunicorn + Uvicorn** — Production ASGI server
 
 ### Cloud Services (Azure)
 
@@ -77,7 +88,9 @@ Backend Node.js (Express + App Insights)
 3. **Speech Services** — Text-to-Speech + Speech-to-Text  
 4. **Blob Storage** — Almacenamiento escalable de documentos  
 5. **Application Insights** — Monitoreo, logs y telemetría  
-6. **Resource Group** — Gestión unificada de recursos  
+6. **Azure Functions** Auto-indexacion de documentos
+7. **App Service** - Hosting Backend y Frontend
+8. **Key Vault** - Manejo de secretos
 
 ### IA y Machine Learning
 
@@ -127,7 +140,8 @@ az login
 Hacer ejecutable el script de setup:
 
 ```bash
-chmod +x setup-azure.sh
+chmod +x infrastructure/setup-azure.sh
+./infrastructure/setup-azure.sh
 ```
 
 **Este script creará automáticamente:**
@@ -137,12 +151,7 @@ chmod +x setup-azure.sh
 - Speech Services (STT + TTS)  
 - Blob Storage  
 - Application Insights - **GRATIS** (5GB/mes)  
-
-Ejecutar (esto crea todos los recursos en Azure):
-
-```bash
-./setup-azure.sh
-```
+- **Genera archivo .env con las credenciales**
 
 ⏱️ **Tiempo estimado:** 8-10 minutos
 
@@ -157,20 +166,49 @@ nano .env
 # Buscar: HUGGINGFACE_API_KEY=AGREGA_TU_TOKEN_AQUI
 # Reemplazar con tu token
 ```
+### 6. (Opcional) Configurar Key Vault
+Para gestión segura de secrets en producción:
+```bash
+chmod +x infrastructure/setup-keyvault.sh
+./infrastructure/setup-keyvault.sh
+```
+**Tiempo**: 2 minutos
+Esto migra todos los secrets desde .env a Key Vault.
 
-**El script setup-azure.sh genera automáticamente el archivo `.env` con todas las credenciales de Azure.**
-
-### 6. Indexar documentos
+### 7. Indexar documentos
 
 ```bash
 cd backend
 python3 -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+cd ..
 python index_documents.py
 ```
 
-### 7. Ejecutar localmente
+### 8. Deployment a Azure (Producción)
+
+#### Opción A: Deployment Completo (Recomendado)
+```bash
+chmod +x infrastructure/deploy-appservice.sh
+./infrastructure/deploy-appservice.sh
+```
+El script te preguntará:
+•	F1 (Gratis): Para demos y testing
+•	B1 ($13/mes): Para producción, siempre activo
+
+**Tiempo total**: 8-12 minutos
+**Resultado**: URLs públicas HTTPS para tu aplicación.
+
+**Azure Function (Auto-indexación)**
+•	Flujo para autoindexear documentos al subirlos
+
+```bash
+chmod +x infrastructure/deploy-function.sh
+./infrastructure/deploy-function.sh
+```
+
+#### Opción B: Testing Local (antes de deployar)
 
 **Terminal 1 (Backend Python):**
 
@@ -180,10 +218,10 @@ source venv/bin/activate
 python app.py
 ```
 
-**Terminal 2 (Backend Node.js):**
+**Terminal 2 (Frontend Node.js):**
 
 ```bash
-cd backend
+cd frontend
 npm install
 npm start
 ```
@@ -191,10 +229,23 @@ npm start
 **Abrir navegador:**
 
 ```
-http://localhost:3000
+Usuario: http://localhost:3000
+Admin: http://localhost:3000/admin
 ```
 
 ---
+### Azure Function (Auto-indexación)
+Deploy la función serverless que indexa automáticamente documentos nuevos:
+```bash
+chmod +x infrastructure/deploy-function.sh
+./infrastructure/deploy-function.sh
+```
+**Flujo automático:**
+1. Admin sube documento en /admin → Blob Storage
+2. Azure Function detecta nuevo archivo (trigger)
+3. Function indexa en Azure AI Search
+4. Function actualiza Cosmos DB (indexed: true)
+5. Usuario puede preguntar sobre el contenido inmediatamente
 
 ## Uso
 
@@ -217,7 +268,20 @@ http://localhost:3000
 - Click en **🔊 Voz: ON** para escuchar respuestas  
 - Click en **🔇 Voz: OFF** para solo texto  
 
+### Panel de Administración (/admin)
+**Credenciales por defecto:**
+```
+Usuario: admin
+Password: changeme123
+```
+
+**IMPORTANTE: Cambiar en .env antes de producción:**
+ADMIN_USERNAME=tu_usuario_seguro
+ADMIN_PASSWORD=tu_password_complejo_123
+
+
 ## API Endpoints
+**Públicos (sin autenticación)**
 
 | Endpoint | Método | Descripción |
 |----------|--------|-------------|
@@ -225,11 +289,16 @@ http://localhost:3000
 | `/ask` | POST | Enviar pregunta al chatbot (RAG) |
 | `/stt` | POST | Speech-to-Text (voz → texto) |
 | `/tts` | POST | Text-to-Speech (texto → voz) |
-| `/upload-document` | POST | Subir documento a Blob Storage |
-| `/documents` | GET | Listar documentos subidos |
-| `/history/:id` | GET | Historial de conversación |
-| `/stats` | GET | Estadísticas del sistema |
 
+**Admin (requieren autenticación)**
+| Endpoint | Método | Descripción |
+|----------|--------|-------------|
+| `/admin` | GET | Panel de administración |
+| `/admin/login` | POST | Login de administrador |
+| `/admin/stats` | GET | Estadísticas del sistema |
+| `/admin/documents` | GET | Listar todos los documentos |
+| `/admin/upload-documents` | POST | Subir nuevo documento |
+| `/admin/documents/:id` | DELETE | Eliminar documento |
 ---
 
 ## Características 
@@ -273,6 +342,81 @@ http://localhost:3000
 - ✅ **Hybrid Search** (keyword + semantic)  
 
 ---
+
+## Comandos Útiles
+### Gestión de App Services
+# Reiniciar aplicaciones
+```bash
+az webapp restart -n chatbot-frontend-XXXXX -g rg-chatbot-rag
+az webapp restart -n chatbot-backend-XXXXX -g rg-chatbot-rag
+```
+
+# Detener (para ahorrar en tier B1)
+```bash
+az webapp stop -n chatbot-frontend-XXXXX -g rg-chatbot-rag
+az webapp stop -n chatbot-backend-XXXXX -g rg-chatbot-rag
+```
+
+# Iniciar
+```bash
+az webapp start -n chatbot-frontend-XXXXX -g rg-chatbot-rag
+az webapp start -n chatbot-backend-XXXXX -g rg-chatbot-rag
+```
+
+# Cambiar tier (de F1 a B1)
+```bash
+az appservice plan update \
+  --name plan-chatbot \
+  --resource-group rg-chatbot-rag \
+  --sku B1
+```
+
+# Ver configuración
+```bash
+az webapp config show -n chatbot-frontend-XXXXX -g rg-chatbot-rag
+```
+
+# Ver variables de entorno
+```bash
+az webapp config appsettings list \
+  -n chatbot-frontend-XXXXX \
+  -g rg-chatbot-rag
+Testing y Debugging
+```
+# Verificar health
+```bash
+curl https://chatbot-frontend-XXXXX.azurewebsites.net/health
+```
+
+# Test del backend RAG
+```bash
+curl -X POST https://chatbot-backend-XXXXX.azurewebsites.net/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question":"¿Cuánto cuesta ir a Brasil?"}'
+```
+
+# Abrir SSH en App Service (solo Linux)
+```bash
+az webapp ssh -n chatbot-backend-XXXXX -g rg-chatbot-rag
+```
+# Ver métricas de uso
+```bash
+az monitor metrics list \
+  --resource chatbot-frontend-XXXXX \
+  --resource-group rg-chatbot-rag \
+  --metric-names CpuPercentage MemoryPercentage
+```
+
+# Eliminar solo las apps (mantener plan)
+```bash
+az webapp delete -n chatbot-frontend-XXXXX -g rg-chatbot-rag
+az webapp delete -n chatbot-backend-XXXXX -g rg-chatbot-rag
+```
+
+# Eliminar TODO el proyecto (cuando termines)
+```bash
+az group delete -n rg-chatbot-rag --yes --no-wait
+```
 
 ## Licencia
 
