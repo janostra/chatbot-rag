@@ -39,8 +39,14 @@ build/
 
 # Azure
 .azure/
+deploy-info.txt
 
 # Testing
 .pytest_cache/
 coverage/
 *.cover
+
+# Deployment artifacts
+*.zip
+backend-deploy.zip
+frontend-deploy.zip

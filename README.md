@@ -342,6 +342,80 @@ ADMIN_PASSWORD=tu_password_complejo_123
 - ✅ **Hybrid Search** (keyword + semantic)  
 
 ---
+## Comandos Útiles
+### Gestión de App Services
+# Reiniciar aplicaciones
+```bash
+az webapp restart -n chatbot-frontend-XXXXX -g rg-chatbot-rag
+az webapp restart -n chatbot-backend-XXXXX -g rg-chatbot-rag
+```
+
+# Detener (para ahorrar en tier B1)
+```bash
+az webapp stop -n chatbot-frontend-XXXXX -g rg-chatbot-rag
+az webapp stop -n chatbot-backend-XXXXX -g rg-chatbot-rag
+```
+
+# Iniciar
+```bash
+az webapp start -n chatbot-frontend-XXXXX -g rg-chatbot-rag
+az webapp start -n chatbot-backend-XXXXX -g rg-chatbot-rag
+```
+
+# Cambiar tier (de F1 a B1)
+```bash
+az appservice plan update \
+  --name plan-chatbot \
+  --resource-group rg-chatbot-rag \
+  --sku B1
+```
+
+# Ver configuración
+```bash
+az webapp config show -n chatbot-frontend-XXXXX -g rg-chatbot-rag
+```
+
+# Ver variables de entorno
+```bash
+az webapp config appsettings list \
+  -n chatbot-frontend-XXXXX \
+  -g rg-chatbot-rag
+Testing y Debugging
+```
+# Verificar health
+```bash
+curl https://chatbot-frontend-XXXXX.azurewebsites.net/health
+```
+
+# Test del backend RAG
+```bash
+curl -X POST https://chatbot-backend-XXXXX.azurewebsites.net/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question":"¿Cuánto cuesta ir a Brasil?"}'
+```
+
+# Abrir SSH en App Service (solo Linux)
+```bash
+az webapp ssh -n chatbot-backend-XXXXX -g rg-chatbot-rag
+```
+# Ver métricas de uso
+```bash
+az monitor metrics list \
+  --resource chatbot-frontend-XXXXX \
+  --resource-group rg-chatbot-rag \
+  --metric-names CpuPercentage MemoryPercentage
+```
+
+# Eliminar solo las apps (mantener plan)
+```bash
+az webapp delete -n chatbot-frontend-XXXXX -g rg-chatbot-rag
+az webapp delete -n chatbot-backend-XXXXX -g rg-chatbot-rag
+```
+
+# Eliminar TODO el proyecto (cuando termines)
+```bash
+az group delete -n rg-chatbot-rag --yes --no-wait
+```
 
 ## Comandos Útiles
 ### Gestión de App Services
