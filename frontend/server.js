@@ -26,21 +26,53 @@ let secrets = {};
 
 async function loadSecretsFromKeyVault() {
   try {
-    if (process.env.VAULT_URL) {
+    const vaultUrl = process.env.VAULT_URL;
+    
+    if (vaultUrl && vaultUrl.trim() !== '') {
       console.log("🔐 Cargando secrets desde Key Vault...");
       
       const credential = new DefaultAzureCredential();
-      const client = new SecretClient(process.env.VAULT_URL, credential);
+      const client = new SecretClient(vaultUrl, credential);
       
-      secrets.MONGO_URI = (await client.getSecret("MONGO-URI")).value;
-      secrets.SPEECH_KEY = (await client.getSecret("SPEECH-KEY")).value;
-      secrets.AZURE_SEARCH_KEY = (await client.getSecret("AZURE-SEARCH-KEY")).value;
-      secrets.HUGGINGFACE_API_KEY = (await client.getSecret("HUGGINGFACE-API-KEY")).value;
-      secrets.STORAGE_CONNECTION = (await client.getSecret("STORAGE-CONNECTION")).value;
+      // Cargar secrets con fallback
+      try {
+        secrets.MONGO_URI = (await client.getSecret("MONGO-URI")).value;
+      } catch (e) {
+        console.log("   ⚠️  MONGO-URI no encontrado en vault, usando .env");
+        secrets.MONGO_URI = process.env.MONGO_URI;
+      }
+      
+      try {
+        secrets.SPEECH_KEY = (await client.getSecret("SPEECH-KEY")).value;
+      } catch (e) {
+        console.log("   ⚠️  SPEECH-KEY no encontrado en vault, usando .env");
+        secrets.SPEECH_KEY = process.env.SPEECH_KEY;
+      }
+      
+      try {
+        secrets.AZURE_SEARCH_KEY = (await client.getSecret("AZURE-SEARCH-KEY")).value;
+      } catch (e) {
+        console.log("   ⚠️  AZURE-SEARCH-KEY no encontrado en vault, usando .env");
+        secrets.AZURE_SEARCH_KEY = process.env.AZURE_SEARCH_KEY;
+      }
+      
+      try {
+        secrets.HUGGINGFACE_API_KEY = (await client.getSecret("HUGGINGFACE-API-KEY")).value;
+      } catch (e) {
+        console.log("   ⚠️  HUGGINGFACE-API-KEY no encontrado en vault, usando .env");
+        secrets.HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY;
+      }
+      
+      try {
+        secrets.STORAGE_CONNECTION = (await client.getSecret("STORAGE-CONNECTION")).value;
+      } catch (e) {
+        console.log("   ⚠️  STORAGE-CONNECTION no encontrado en vault, usando .env");
+        secrets.STORAGE_CONNECTION = process.env.AZURE_STORAGE_CONNECTION_STRING;
+      }
       
       console.log("✅ Secrets cargados desde Key Vault");
     } else {
-      // Fallback a variables de entorno
+      // Fallback COMPLETO a variables de entorno
       console.log("⚠️  Key Vault no configurado, usando .env");
       secrets.MONGO_URI = process.env.MONGO_URI;
       secrets.SPEECH_KEY = process.env.SPEECH_KEY;
@@ -48,9 +80,32 @@ async function loadSecretsFromKeyVault() {
       secrets.HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY;
       secrets.STORAGE_CONNECTION = process.env.AZURE_STORAGE_CONNECTION_STRING;
     }
+    
+    // VALIDACIÓN POST-CARGA
+    const required = {
+      MONGO_URI: secrets.MONGO_URI,
+      SPEECH_KEY: secrets.SPEECH_KEY,
+      AZURE_SEARCH_KEY: secrets.AZURE_SEARCH_KEY,
+      HUGGINGFACE_API_KEY: secrets.HUGGINGFACE_API_KEY
+    };
+    
+    const missing = Object.entries(required)
+      .filter(([_, value]) => !value || value.trim() === '' || value.includes('AGREGA'))
+      .map(([key]) => key);
+    
+    if (missing.length > 0) {
+      console.error("❌ Faltan secrets críticos:", missing.join(', '));
+      console.error("La app iniciará en modo degradado.");
+    }
+
+    
+    console.log("✅ Validación de secrets completa");
+    
   } catch (error) {
-    console.error("❌ Error cargando secrets:", error);
-    process.exit(1);
+    console.error("❌ Error crítico cargando secrets:", error);
+    if (error.message.includes('Faltan secrets')) {
+      console.error("\n🔴 DEPLOYMENT FALLARÁ - Verifica variables de entorno en Azure Portal");
+    }
   }
 }
 
@@ -85,9 +140,18 @@ const PORT = process.env.PORT || 3000;
 // BLOB STORAGE
 // ============================================
 let blobServiceClient;
-if (secrets.STORAGE_CONNECTION) {
-  blobServiceClient = BlobServiceClient.fromConnectionString(secrets.STORAGE_CONNECTION);
-  console.log("✅ Blob Storage configurado");
+try {
+  const storageConnection = secrets.STORAGE_CONNECTION || process.env.AZURE_STORAGE_CONNECTION_STRING;
+  
+  if (storageConnection && storageConnection.trim() !== '' && !storageConnection.includes('AGREGA')) {
+    blobServiceClient = BlobServiceClient.fromConnectionString(storageConnection);
+    console.log("✅ Blob Storage configurado");
+  } else {
+    console.log("⚠️  Blob Storage no configurado - upload de documentos deshabilitado");
+  }
+} catch (error) {
+  console.error("❌ Error configurando Blob Storage:", error.message);
+  console.log("   La app continuará sin capacidad de upload");
 }
 
 // ============================================
