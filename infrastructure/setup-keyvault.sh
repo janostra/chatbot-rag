@@ -10,6 +10,7 @@ echo "🔐 Configurando Azure Key Vault..."
 # Variables
 RESOURCE_GROUP="rg-chatbot-rag"
 LOCATION="westus3"
+APP_NAME="chatbot-rag-app"
 TIMESTAMP=$(date +%s)
 VAULT_NAME="kv-chatbot-${TIMESTAMP}"
 
@@ -40,14 +41,22 @@ az keyvault create \
   --output none
 
 echo "✅ Key Vault creado"
+echo "✅ Vault creado: $VAULT_NAME"
 
 # Dar permisos al usuario actual
 echo "🔑 Configurando permisos..."
-USER_ID=$(az ad signed-in-user show --query id -o tsv)
+echo "🪪 Activando Managed Identity en App Service..."
+az webapp identity assign --name $APP_NAME --resource-group $RESOURCE_GROUP --output none
+
+APP_PRINCIPAL_ID=$(az webapp identity show \
+  --name $APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --query principalId -o tsv)
+
 
 az keyvault set-policy \
   --name $VAULT_NAME \
-  --object-id $USER_ID \
+  --object-id $APP_PRINCIPAL_ID \
   --secret-permissions get list set delete \
   --output none
 
