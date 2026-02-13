@@ -10,7 +10,6 @@ echo "🔐 Configurando Azure Key Vault..."
 # Variables
 RESOURCE_GROUP="rg-chatbot-rag"
 LOCATION="westus3"
-APP_NAME="chatbot-rag-app"
 TIMESTAMP=$(date +%s)
 VAULT_NAME="kv-chatbot-${TIMESTAMP}"
 
@@ -40,27 +39,79 @@ az keyvault create \
   --enable-rbac-authorization false \
   --output none
 
-echo "✅ Key Vault creado"
-echo "✅ Vault creado: $VAULT_NAME"
+echo "✅ Key Vault creado: $VAULT_NAME"
 
-# Dar permisos al usuario actual
-echo "🔑 Configurando permisos..."
-echo "🪪 Activando Managed Identity en App Service..."
-az webapp identity assign --name $APP_NAME --resource-group $RESOURCE_GROUP --output none
-
-APP_PRINCIPAL_ID=$(az webapp identity show \
-  --name $APP_NAME \
-  --resource-group $RESOURCE_GROUP \
-  --query principalId -o tsv)
-
+# Obtener usuario actual para permisos
+USER_OBJECT_ID=$(az ad signed-in-user show --query id -o tsv)
 
 az keyvault set-policy \
   --name $VAULT_NAME \
-  --object-id $APP_PRINCIPAL_ID \
+  --object-id $USER_OBJECT_ID \
   --secret-permissions get list set delete \
   --output none
 
-echo "✅ Permisos configurados"
+echo "✅ Permisos configurados para usuario actual"
+
+# Buscar App Services deployadas (frontend y backend)
+echo "🔍 Buscando App Services deployadas..."
+FRONTEND_APP=$(az webapp list \
+  --resource-group $RESOURCE_GROUP \
+  --query "[?contains(name, 'chatbot-frontend')].name | [0]" -o tsv 2>/dev/null || echo "")
+
+BACKEND_APP=$(az webapp list \
+  --resource-group $RESOURCE_GROUP \
+  --query "[?contains(name, 'chatbot-backend')].name | [0]" -o tsv 2>/dev/null || echo "")
+
+# Configurar Managed Identity para las apps si existen
+if [ ! -z "$FRONTEND_APP" ]; then
+    echo "🪪 Activando Managed Identity en $FRONTEND_APP..."
+    az webapp identity assign \
+      --name $FRONTEND_APP \
+      --resource-group $RESOURCE_GROUP \
+      --output none 2>/dev/null || true
+    
+    FRONTEND_PRINCIPAL_ID=$(az webapp identity show \
+      --name $FRONTEND_APP \
+      --resource-group $RESOURCE_GROUP \
+      --query principalId -o tsv 2>/dev/null || echo "")
+    
+    if [ ! -z "$FRONTEND_PRINCIPAL_ID" ]; then
+        az keyvault set-policy \
+          --name $VAULT_NAME \
+          --object-id $FRONTEND_PRINCIPAL_ID \
+          --secret-permissions get list \
+          --output none
+        echo "   ✅ Permisos configurados para $FRONTEND_APP"
+    fi
+fi
+
+if [ ! -z "$BACKEND_APP" ]; then
+    echo "🪪 Activando Managed Identity en $BACKEND_APP..."
+    az webapp identity assign \
+      --name $BACKEND_APP \
+      --resource-group $RESOURCE_GROUP \
+      --output none 2>/dev/null || true
+    
+    BACKEND_PRINCIPAL_ID=$(az webapp identity show \
+      --name $BACKEND_APP \
+      --resource-group $RESOURCE_GROUP \
+      --query principalId -o tsv 2>/dev/null || echo "")
+    
+    if [ ! -z "$BACKEND_PRINCIPAL_ID" ]; then
+        az keyvault set-policy \
+          --name $VAULT_NAME \
+          --object-id $BACKEND_PRINCIPAL_ID \
+          --secret-permissions get list \
+          --output none
+        echo "   ✅ Permisos configurados para $BACKEND_APP"
+    fi
+fi
+
+if [ -z "$FRONTEND_APP" ] && [ -z "$BACKEND_APP" ]; then
+    echo "⚠️  No se encontraron App Services deployadas"
+    echo "   Puedes configurar permisos más tarde con:"
+    echo "   az webapp identity assign --name <APP_NAME> --resource-group $RESOURCE_GROUP"
+fi
 
 # Cargar .env
 echo "📦 Cargando secrets desde .env..."
@@ -135,11 +186,21 @@ echo "   • AZURE-SEARCH-KEY"
 echo "   • HUGGINGFACE-API-KEY"
 echo "   • STORAGE-CONNECTION"
 echo ""
+echo "🪪 Managed Identity configurada para:"
+if [ ! -z "$FRONTEND_APP" ]; then
+    echo "   • $FRONTEND_APP"
+fi
+if [ ! -z "$BACKEND_APP" ]; then
+    echo "   • $BACKEND_APP"
+fi
+echo ""
 echo "📝 Próximos pasos:"
 echo ""
 echo "1️⃣  Los secrets ya están en Key Vault"
 echo "2️⃣  El archivo .env fue actualizado con VAULT_URL"
-echo "3️⃣  Al deployar a Azure, los containers usarán Key Vault automáticamente"
+echo "3️⃣  Al deployar nuevas apps a Azure, configura Managed Identity:"
+echo "   az webapp identity assign --name <APP_NAME> --resource-group $RESOURCE_GROUP"
+echo "   az keyvault set-policy --name $VAULT_NAME --object-id <PRINCIPAL_ID> --secret-permissions get list"
 echo ""
 echo "💡 Para acceso local:"
 echo "   - Asegúrate de estar logueado: az login"

@@ -1,9 +1,15 @@
-# Environment variables
+# ============================================
+# ENVIRONMENT VARIABLES
+# ============================================
 .env
 .env.local
 .env.production
+.env.development
+.env.test
 
-# Dependencies
+# ============================================
+# DEPENDENCIES
+# ============================================
 node_modules/
 __pycache__/
 *.pyc
@@ -13,40 +19,159 @@ __pycache__/
 venv/
 env/
 ENV/
+.venv/
 
+# Python packages
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+
+# ============================================
 # IDE
+# ============================================
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+*.sublime-project
+*.sublime-workspace
 
+# ============================================
 # OS
+# ============================================
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+Desktop.ini
 
-# Logs
+# ============================================
+# LOGS
+# ============================================
 *.log
 logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# Build
+# ============================================
+# BUILD
+# ============================================
 dist/
 build/
 *.egg-info/
+.next/
+out/
 
-# Azure
+# ============================================
+# AZURE SPECIFIC
+# ============================================
 .azure/
 deploy-info.txt
+local.settings.json
 
-# Testing
+# Azure Functions
+__blobstorage__/
+__queuestorage__/
+__azurite_db*__.json
+.python_packages/
+
+# ============================================
+# TESTING
+# ============================================
 .pytest_cache/
 coverage/
 *.cover
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+pytest_debug.log
 
-# Deployment artifacts
+# ============================================
+# DEPLOYMENT ARTIFACTS
+# ============================================
 *.zip
 backend-deploy.zip
 frontend-deploy.zip
+function.zip
+function-deploy.zip
+
+# Temporary deployment folders
+function-app/
+.deployment/
+
+# ============================================
+# SECRETS & KEYS 
+# ============================================
+*.pem
+*.key
+*.cert
+*.pfx
+secrets.json
+credentials.json
+
+# Azure Key Vault exports
+keyvault-backup/
+secrets/
+
+# ============================================
+# DATABASE
+# ============================================
+*.db
+*.sqlite
+*.sqlite3
+
+# ============================================
+# CACHE
+# ============================================
+.cache/
+.parcel-cache/
+.npm/
+.eslintcache
+*.tsbuildinfo
+
+# ============================================
+# NODE SPECIFIC
+# ============================================
+package-lock.json.backup
+yarn.lock.backup
+
+# ============================================
+# PYTHON SPECIFIC
+# ============================================
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+.installed.cfg
+
+# ============================================
+# MISC
+# ============================================
+.env.backup
+*.bak
+*.tmp
+*.temp
+.scratch/
+TODO.md
+NOTES.md

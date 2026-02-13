@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script para crear y deployar Azure Function
-# La función se ejecutará automáticamente cuando se suba un documento
+# Versión SIMPLIFICADA (sin copia temporal)
 
 set -e
 
@@ -12,7 +12,7 @@ RESOURCE_GROUP="rg-chatbot-rag"
 LOCATION="westus3"
 TIMESTAMP=$(date +%s)
 FUNCTION_APP_NAME="func-indexer-${TIMESTAMP}"
-STORAGE_ACCOUNT="storage${TIMESTAMP}"
+STORAGE_ACCOUNT=""
 
 echo ""
 echo "📋 Configuración:"
@@ -34,7 +34,6 @@ if [ "$PROVIDER_STATE" != "Registered" ]; then
     
     echo "⏳ Esperando a que se complete el registro (puede tardar 2-3 min)..."
     
-    # Esperar hasta que esté registrado (timeout 5 minutos)
     COUNTER=0
     while [ $COUNTER -lt 60 ]; do
         PROVIDER_STATE=$(az provider show --namespace Microsoft.Web --query "registrationState" -o tsv)
@@ -74,6 +73,55 @@ if [ -z "$AZURE_STORAGE_ACCOUNT_NAME" ]; then
 fi
 
 STORAGE_ACCOUNT=$AZURE_STORAGE_ACCOUNT_NAME
+
+# ============================================
+# VALIDAR ESTRUCTURA CORRECTA
+# ============================================
+echo "🔍 Validando estructura de Azure Functions..."
+
+# Verificar que existe azure_functions/
+if [ ! -d "azure_functions" ]; then
+    echo "❌ Error: No se encontró carpeta azure_functions/"
+    exit 1
+fi
+
+# Verificar estructura correcta
+REQUIRED_FILES=(
+    "azure_functions/host.json"
+    "azure_functions/requirements.txt"
+    "azure_functions/indexer_document/__init__.py"
+    "azure_functions/indexer_document/function.json"
+)
+
+MISSING_FILES=()
+for file in "${REQUIRED_FILES[@]}"; do
+    if [ ! -f "$file" ]; then
+        MISSING_FILES+=("$file")
+    fi
+done
+
+if [ ${#MISSING_FILES[@]} -gt 0 ]; then
+    echo "❌ Error: Estructura incorrecta de Azure Functions"
+    echo ""
+    echo "   Archivos faltantes:"
+    for file in "${MISSING_FILES[@]}"; do
+        echo "   - $file"
+    done
+    echo ""
+    echo "   Estructura esperada:"
+    echo "   azure_functions/"
+    echo "   ├── host.json              ← En la raíz"
+    echo "   ├── requirements.txt       ← En la raíz"
+    echo "   └── indexer_document/"
+    echo "       ├── __init__.py"
+    echo "       └── function.json"
+    echo ""
+    echo "   Ejecuta para reorganizar:"
+    echo "   ./reorganize-functions.sh"
+    exit 1
+fi
+
+echo "✅ Estructura correcta"
 
 # 1. Crear Function App
 echo "⚡ Creando Azure Function App..."
@@ -122,13 +170,15 @@ az functionapp config appsettings set \
 
 echo "✅ Application Insights habilitado"
 
-# 4. Deploy del código
+# ============================================
+# 4. DEPLOY 
+# ============================================
 echo "📦 Deployando función..."
 
-# Crear zip del código
-cd azure-functions/document-indexer
-zip -r ../../function.zip . -x "*.pyc" -x "__pycache__/*"
-cd ../..
+# Crear zip azure_functions/
+cd azure_functions
+zip -r ../function.zip . -x "*.pyc" -x "__pycache__/*" -x "*.git/*"
+cd ..
 
 # Deploy
 az functionapp deployment source config-zip \
@@ -146,7 +196,6 @@ echo "✅ Función deployada"
 # 5. Configurar trigger de Blob Storage
 echo "🔗 Configurando blob trigger..."
 
-# La función ya está configurada para escuchar el container "documents"
 # Verificar que existe el container
 az storage container show \
   --name documents \
