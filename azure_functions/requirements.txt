@@ -9,11 +9,8 @@ azure-core
 # --- LangChain ---
 langchain
 langchain-core
-langchain-communit
+langchain-community
 langchain-text-splitters
-
-# --- Hugging Face ---
-huggingface-hub
 
 # --- Utilidades ---
 python-dotenv
