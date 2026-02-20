@@ -1,12 +1,20 @@
+# --- Azure Functions runtime ---
 azure-functions
+# --- Azure SDKs ---
 azure-storage-blob
 azure-cosmos
-langchain
-langchain-core
-langchain-community
-#langchain-huggingface
-#sentence-transformers
-#transformers
-#torch --index-url https://download.pytorch.org/whl/cpu
 azure-search-documents
 azure-identity
+azure-core
+# --- LangChain ---
+langchain
+langchain-core
+langchain-communit
+langchain-text-splitters
+
+# --- Hugging Face ---
+huggingface-hub
+
+# --- Utilidades ---
+python-dotenv
+requests

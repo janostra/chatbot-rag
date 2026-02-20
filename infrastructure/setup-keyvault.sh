@@ -1,211 +1,190 @@
 #!/bin/bash
 
-# Script para crear y configurar Azure Key Vault
-# Migra todos los secrets desde .env a Key Vault
+# =============================================================
+# setup-keyvault.sh
+# Crea Azure Key Vault y migra secrets desde .env
+#
+# Uso:
+#   ./infrastructure/setup-keyvault.sh
+#
+# Puede correrse ANTES o DESPUÉS de deploy-appservice.sh.
+# Si las App Services ya existen, les asigna permisos automáticamente.
+# Si no existen todavía, los permisos se asignan en deploy-appservice.sh.
+# =============================================================
 
 set -e
 
-echo "🔐 Configurando Azure Key Vault..."
-
-# Variables
 RESOURCE_GROUP="rg-chatbot-rag"
 LOCATION="westus3"
 TIMESTAMP=$(date +%s)
 VAULT_NAME="kv-chatbot-${TIMESTAMP}"
 
-# Verificar que existe .env
+echo "🔐 Configurando Azure Key Vault"
+echo ""
+echo "📋 Configuración:"
+echo "   Resource Group : $RESOURCE_GROUP"
+echo "   Key Vault      : $VAULT_NAME"
+echo ""
+
+# ── Verificar .env ──────────────────────────────────────────
 if [ ! -f .env ]; then
-    echo "❌ Error: No se encontró archivo .env"
+    echo "❌ No se encontró archivo .env"
     echo "   Ejecuta primero: ./infrastructure/setup-azure.sh"
     exit 1
 fi
 
-echo ""
-echo "📋 Configuración:"
-echo "   Resource Group: $RESOURCE_GROUP"
-echo "   Key Vault: $VAULT_NAME"
-echo ""
+source .env
 
-# Login
+# ── Login ───────────────────────────────────────────────────
 echo "🔐 Verificando login en Azure..."
-az account show &> /dev/null || az login
+az account show &>/dev/null || az login
 
-# Crear Key Vault
+# ── Crear Key Vault ─────────────────────────────────────────
 echo "🏗️  Creando Key Vault..."
 az keyvault create \
-  --name $VAULT_NAME \
-  --resource-group $RESOURCE_GROUP \
-  --location $LOCATION \
-  --enable-rbac-authorization false \
-  --output none
+    --name "$VAULT_NAME" \
+    --resource-group "$RESOURCE_GROUP" \
+    --location "$LOCATION" \
+    --enable-rbac-authorization false \
+    --output none
 
 echo "✅ Key Vault creado: $VAULT_NAME"
+VAULT_URL="https://${VAULT_NAME}.vault.azure.net/"
 
-# Obtener usuario actual para permisos
+# ── Permisos para el usuario actual (dev local) ──────────────
 USER_OBJECT_ID=$(az ad signed-in-user show --query id -o tsv)
-
 az keyvault set-policy \
-  --name $VAULT_NAME \
-  --object-id $USER_OBJECT_ID \
-  --secret-permissions get list set delete \
-  --output none
+    --name "$VAULT_NAME" \
+    --object-id "$USER_OBJECT_ID" \
+    --secret-permissions get list set delete \
+    --output none
+echo "✅ Permisos configurados para usuario local"
 
-echo "✅ Permisos configurados para usuario actual"
+# ── Migrar secrets al Vault ──────────────────────────────────
+echo ""
+echo "🔄 Migrando secrets desde .env..."
 
-# Buscar App Services deployadas (frontend y backend)
+migrate_secret() {
+    local vault="$1"
+    local secret_name="$2"
+    local secret_value="$3"
+    local skip_pattern="${4:-}"
+
+    if [ -z "$secret_value" ]; then
+        echo "   ⚠️  $secret_name vacío, saltando"
+        return
+    fi
+    if [ -n "$skip_pattern" ] && echo "$secret_value" | grep -q "$skip_pattern"; then
+        echo "   ⚠️  $secret_name tiene valor placeholder, saltando"
+        return
+    fi
+    az keyvault secret set \
+        --vault-name "$vault" \
+        --name "$secret_name" \
+        --value "$secret_value" \
+        --output none
+    echo "   ✅ $secret_name"
+}
+
+migrate_secret "$VAULT_NAME" "MONGO-URI"              "$MONGO_URI"
+migrate_secret "$VAULT_NAME" "SPEECH-KEY"             "$SPEECH_KEY"
+migrate_secret "$VAULT_NAME" "AZURE-SEARCH-KEY"       "$AZURE_SEARCH_KEY"
+migrate_secret "$VAULT_NAME" "HUGGINGFACE-API-KEY"    "$HUGGINGFACE_API_KEY"   "AGREGA_TU"
+migrate_secret "$VAULT_NAME" "STORAGE-CONNECTION"     "$AZURE_STORAGE_CONNECTION_STRING"
+migrate_secret "$VAULT_NAME" "ADMIN-USERNAME"         "${ADMIN_USERNAME:-admin}"
+migrate_secret "$VAULT_NAME" "ADMIN-PASSWORD"         "${ADMIN_PASSWORD:-changeme123}"
+
+# ── Conectar App Services existentes (si ya fueron deployadas) ─
+echo ""
 echo "🔍 Buscando App Services deployadas..."
+
+connect_app_to_vault() {
+    local app_name="$1"
+    local vault="$2"
+
+    if [ -z "$app_name" ]; then return; fi
+
+    echo "   🪪 Asignando Managed Identity a $app_name..."
+    az webapp identity assign \
+        --name "$app_name" \
+        --resource-group "$RESOURCE_GROUP" \
+        --output none 2>/dev/null || true
+
+    local principal_id
+    principal_id=$(az webapp identity show \
+        --name "$app_name" \
+        --resource-group "$RESOURCE_GROUP" \
+        --query principalId -o tsv 2>/dev/null || echo "")
+
+    if [ -n "$principal_id" ]; then
+        az keyvault set-policy \
+            --name "$vault" \
+            --object-id "$principal_id" \
+            --secret-permissions get list \
+            --output none
+        echo "   ✅ $app_name conectado al vault"
+    else
+        echo "   ⚠️  No se pudo obtener identity de $app_name"
+    fi
+}
+
 FRONTEND_APP=$(az webapp list \
-  --resource-group $RESOURCE_GROUP \
-  --query "[?contains(name, 'chatbot-frontend')].name | [0]" -o tsv 2>/dev/null || echo "")
+    --resource-group "$RESOURCE_GROUP" \
+    --query "[?contains(name, 'chatbot-frontend')].name | [0]" -o tsv 2>/dev/null || echo "")
 
 BACKEND_APP=$(az webapp list \
-  --resource-group $RESOURCE_GROUP \
-  --query "[?contains(name, 'chatbot-backend')].name | [0]" -o tsv 2>/dev/null || echo "")
+    --resource-group "$RESOURCE_GROUP" \
+    --query "[?contains(name, 'chatbot-backend')].name | [0]" -o tsv 2>/dev/null || echo "")
 
-# Configurar Managed Identity para las apps si existen
-if [ ! -z "$FRONTEND_APP" ]; then
-    echo "🪪 Activando Managed Identity en $FRONTEND_APP..."
-    az webapp identity assign \
-      --name $FRONTEND_APP \
-      --resource-group $RESOURCE_GROUP \
-      --output none 2>/dev/null || true
-    
-    FRONTEND_PRINCIPAL_ID=$(az webapp identity show \
-      --name $FRONTEND_APP \
-      --resource-group $RESOURCE_GROUP \
-      --query principalId -o tsv 2>/dev/null || echo "")
-    
-    if [ ! -z "$FRONTEND_PRINCIPAL_ID" ]; then
-        az keyvault set-policy \
-          --name $VAULT_NAME \
-          --object-id $FRONTEND_PRINCIPAL_ID \
-          --secret-permissions get list \
-          --output none
-        echo "   ✅ Permisos configurados para $FRONTEND_APP"
-    fi
+if [ -n "$FRONTEND_APP" ]; then
+    connect_app_to_vault "$FRONTEND_APP" "$VAULT_NAME"
 fi
-
-if [ ! -z "$BACKEND_APP" ]; then
-    echo "🪪 Activando Managed Identity en $BACKEND_APP..."
-    az webapp identity assign \
-      --name $BACKEND_APP \
-      --resource-group $RESOURCE_GROUP \
-      --output none 2>/dev/null || true
-    
-    BACKEND_PRINCIPAL_ID=$(az webapp identity show \
-      --name $BACKEND_APP \
-      --resource-group $RESOURCE_GROUP \
-      --query principalId -o tsv 2>/dev/null || echo "")
-    
-    if [ ! -z "$BACKEND_PRINCIPAL_ID" ]; then
-        az keyvault set-policy \
-          --name $VAULT_NAME \
-          --object-id $BACKEND_PRINCIPAL_ID \
-          --secret-permissions get list \
-          --output none
-        echo "   ✅ Permisos configurados para $BACKEND_APP"
-    fi
+if [ -n "$BACKEND_APP" ]; then
+    connect_app_to_vault "$BACKEND_APP" "$VAULT_NAME"
 fi
 
 if [ -z "$FRONTEND_APP" ] && [ -z "$BACKEND_APP" ]; then
-    echo "⚠️  No se encontraron App Services deployadas"
-    echo "   Puedes configurar permisos más tarde con:"
-    echo "   az webapp identity assign --name <APP_NAME> --resource-group $RESOURCE_GROUP"
+    echo "   ℹ️  No hay App Services deployadas aún."
+    echo "      Cuando corras deploy-appservice.sh, el script detectará"
+    echo "      el VAULT_URL del .env y conectará las apps automáticamente."
 fi
 
-# Cargar .env
-echo "📦 Cargando secrets desde .env..."
-source .env
-
-# Migrar secrets a Key Vault
-echo "🔄 Migrando secrets..."
-
-if [ ! -z "$MONGO_URI" ]; then
-    az keyvault secret set --vault-name $VAULT_NAME --name "MONGO-URI" --value "$MONGO_URI" --output none
-    echo "   ✅ MONGO-URI"
-fi
-
-if [ ! -z "$SPEECH_KEY" ]; then
-    az keyvault secret set --vault-name $VAULT_NAME --name "SPEECH-KEY" --value "$SPEECH_KEY" --output none
-    echo "   ✅ SPEECH-KEY"
-fi
-
-if [ ! -z "$AZURE_SEARCH_KEY" ]; then
-    az keyvault secret set --vault-name $VAULT_NAME --name "AZURE-SEARCH-KEY" --value "$AZURE_SEARCH_KEY" --output none
-    echo "   ✅ AZURE-SEARCH-KEY"
-fi
-
-if [ ! -z "$HUGGINGFACE_API_KEY" ] && [ "$HUGGINGFACE_API_KEY" != "AGREGA_TU_TOKEN_AQUI" ]; then
-    az keyvault secret set --vault-name $VAULT_NAME --name "HUGGINGFACE-API-KEY" --value "$HUGGINGFACE_API_KEY" --output none
-    echo "   ✅ HUGGINGFACE-API-KEY"
-fi
-
-if [ ! -z "$AZURE_STORAGE_CONNECTION_STRING" ]; then
-    az keyvault secret set --vault-name $VAULT_NAME --name "STORAGE-CONNECTION" --value "$AZURE_STORAGE_CONNECTION_STRING" --output none
-    echo "   ✅ STORAGE-CONNECTION"
-fi
-
-echo "✅ Secrets migrados a Key Vault"
-
-# Actualizar .env con VAULT_URL
-VAULT_URL="https://${VAULT_NAME}.vault.azure.net/"
-
+# ── Actualizar .env con VAULT_URL ────────────────────────────
 echo ""
 echo "📝 Actualizando .env con VAULT_URL..."
 
-# Agregar o actualizar VAULT_URL en .env
 if grep -q "^VAULT_URL=" .env; then
-    # Actualizar existente (compatible con macOS y Linux)
     if [[ "$OSTYPE" == "darwin"* ]]; then
         sed -i '' "s|^VAULT_URL=.*|VAULT_URL=$VAULT_URL|" .env
     else
         sed -i "s|^VAULT_URL=.*|VAULT_URL=$VAULT_URL|" .env
     fi
 else
-    # Agregar nueva línea
     echo "" >> .env
-    echo "# Azure Key Vault (generado por setup-keyvault.sh)" >> .env
+    echo "# Azure Key Vault" >> .env
     echo "VAULT_URL=$VAULT_URL" >> .env
 fi
 
-echo "✅ .env actualizado"
+echo "✅ .env actualizado con VAULT_URL=$VAULT_URL"
 
+# ── Resumen ──────────────────────────────────────────────────
 echo ""
 echo "╔══════════════════════════════════════════════════════════╗"
-echo "║           🎉 KEY VAULT CONFIGURADO                       ║"
+echo "║              🔐 KEY VAULT CONFIGURADO                    ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
-echo "📋 Información:"
-echo "   Vault Name: $VAULT_NAME"
-echo "   Vault URL: $VAULT_URL"
+echo "   Vault URL : $VAULT_URL"
 echo ""
-echo "🔐 Secrets almacenados:"
-echo "   • MONGO-URI"
-echo "   • SPEECH-KEY"
-echo "   • AZURE-SEARCH-KEY"
-echo "   • HUGGINGFACE-API-KEY"
-echo "   • STORAGE-CONNECTION"
+echo "📌 Secrets almacenados:"
+echo "   MONGO-URI · SPEECH-KEY · AZURE-SEARCH-KEY"
+echo "   HUGGINGFACE-API-KEY · STORAGE-CONNECTION"
+echo "   ADMIN-USERNAME · ADMIN-PASSWORD"
 echo ""
-echo "🪪 Managed Identity configurada para:"
-if [ ! -z "$FRONTEND_APP" ]; then
-    echo "   • $FRONTEND_APP"
-fi
-if [ ! -z "$BACKEND_APP" ]; then
-    echo "   • $BACKEND_APP"
-fi
+echo "🚀 Próximo paso:"
+echo "   Si aún no deployaste: ./infrastructure/deploy-appservice.sh"
+echo "   (Detectará VAULT_URL y conectará las apps automáticamente)"
 echo ""
-echo "📝 Próximos pasos:"
-echo ""
-echo "1️⃣  Los secrets ya están en Key Vault"
-echo "2️⃣  El archivo .env fue actualizado con VAULT_URL"
-echo "3️⃣  Al deployar nuevas apps a Azure, configura Managed Identity:"
-echo "   az webapp identity assign --name <APP_NAME> --resource-group $RESOURCE_GROUP"
-echo "   az keyvault set-policy --name $VAULT_NAME --object-id <PRINCIPAL_ID> --secret-permissions get list"
-echo ""
-echo "💡 Para acceso local:"
-echo "   - Asegúrate de estar logueado: az login"
-echo "   - El código usará DefaultAzureCredential (CLI credential)"
-echo ""
-echo "🔍 Ver secrets en portal:"
-echo "   https://portal.azure.com/#resource/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$VAULT_NAME/secrets"
+echo "💡 Para desarrollo local sin vault:"
+echo "   Comentá o borrá la línea VAULT_URL= del .env"
+echo "   El server caerá a leer las variables directamente del .env"
 echo ""
