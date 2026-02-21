@@ -1,17 +1,31 @@
+# --- Framework API ---
 fastapi
 uvicorn[standard]
 gunicorn==21.2.0
+# --- LangChain ---
 langchain
 langchain-core
 langchain-community
-#langchain-huggingface
 langchain-text-splitters
+
+# --- Hugging Face ---
 huggingface-hub
-#sentence-transformers
-#transformers
-#torch --index-url https://download.pytorch.org/whl/cpu
+
+# --- Azure (siempre necesario) ---
 azure-search-documents
 azure-identity
+azure-core
+
+# --- Utilidades ---
 pydantic
 python-dotenv
 requests
+
+# ============================================================
+# EMBEDDINGS LOCALES - descomentar si USE_LOCAL_EMBEDDINGS=true
+# Nota: torch suma ~1.5 GB al deploy. No recomendado en F1/B1.
+# ============================================================
+# langchain-huggingface==0.1.0
+# sentence-transformers==3.3.1
+# transformers==4.46.3
+# torch==2.5.1+cpu --index-url https://download.pytorch.org/whl/cpu

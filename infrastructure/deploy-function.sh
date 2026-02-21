@@ -9,7 +9,7 @@ echo "⚡ Desplegando Azure Function para auto-indexación"
 
 # Variables
 RESOURCE_GROUP="rg-chatbot-rag"
-LOCATION="westus3"
+LOCATION="eastus"
 TIMESTAMP=$(date +%s)
 FUNCTION_APP_NAME="func-indexer-${TIMESTAMP}"
 STORAGE_ACCOUNT=""
@@ -116,8 +116,6 @@ if [ ${#MISSING_FILES[@]} -gt 0 ]; then
     echo "       ├── __init__.py"
     echo "       └── function.json"
     echo ""
-    echo "   Ejecuta para reorganizar:"
-    echo "   ./reorganize-functions.sh"
     exit 1
 fi
 
@@ -196,20 +194,18 @@ echo "✅ Función deployada"
 # 5. Configurar trigger de Blob Storage
 echo "🔗 Configurando blob trigger..."
 
-# Verificar que existe el container
-az storage container show \
-  --name documents \
+# Verificar que existe el container (usando account-key en vez de connection string)
+STORAGE_KEY=$(az storage account keys list \
   --account-name $STORAGE_ACCOUNT \
-  --connection-string "$AZURE_STORAGE_CONNECTION_STRING" \
-  &> /dev/null || \
+  --resource-group $RESOURCE_GROUP \
+  --query "[0].value" -o tsv)
+
 az storage container create \
   --name documents \
   --account-name $STORAGE_ACCOUNT \
-  --connection-string "$AZURE_STORAGE_CONNECTION_STRING" \
+  --account-key "$STORAGE_KEY" \
   --public-access blob \
-  --output none
-
-echo "✅ Container configurado"
+  --output none 2>/dev/null || true
 
 # Obtener URL de la función
 FUNCTION_URL=$(az functionapp show \

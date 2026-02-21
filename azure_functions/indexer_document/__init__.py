@@ -1,118 +1,124 @@
-"""
-Azure Function: Auto-indexación de documentos en Azure AI Search
-Se ejecuta automáticamente cuando se sube un archivo a Blob Storage
-"""
-
 import logging
 import os
 import json
+import uuid
 import azure.functions as func
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import AzureSearch
+from azure.search.documents import SearchClient
+from azure.core.credentials import AzureKeyCredential
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_core.documents import Document
-from datetime import datetime
+from datetime import datetime, timezone
+from pymongo import MongoClient
 
 
-def main(myBlob: func.InputStream, outputDocument: func.Out[func.Document]):
-    """
-    Trigger: Se ejecuta cuando se sube un archivo a Blob Storage
-    Input: Archivo del blob
-    Output: Actualiza documento en Cosmos DB
-    """
-    
+def main(myBlob: func.InputStream):
     logging.info(f"🔔 Azure Function triggered: {myBlob.name}")
     logging.info(f"📦 Blob size: {myBlob.length} bytes")
-    
+
+    search_endpoint = os.environ.get("AZURE_SEARCH_ENDPOINT")
+    search_key      = os.environ.get("AZURE_SEARCH_KEY")
+    index_name      = os.environ.get("AZURE_SEARCH_INDEX", "travel-docs")
+    mongo_uri       = os.environ.get("CosmosDBConnection")
+
+    if not search_endpoint or not search_key:
+        logging.error("❌ Faltan AZURE_SEARCH_ENDPOINT o AZURE_SEARCH_KEY")
+        raise EnvironmentError("Variables de entorno de Azure Search no configuradas")
+
+    filename    = myBlob.name.split("/")[-1]
+    uuid_parts = filename.split("-")
+    document_id = "-".join(uuid_parts[:5])
+    uploaded_at = datetime.now(timezone.utc).isoformat()
+
     try:
-        # 1. Leer contenido del blob
-        content = myBlob.read().decode('utf-8')
+        raw = myBlob.read()
+        try:
+            content = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            content = raw.decode("latin-1")
+
         logging.info(f"✅ Contenido leído: {len(content)} caracteres")
-        
-        # 2. Dividir en chunks
+
+        if not content.strip():
+            logging.warning("⚠️ El archivo está vacío, se omite la indexación")
+            return
+
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=500,
             chunk_overlap=50,
             length_function=len,
         )
-        
         chunks = text_splitter.split_text(content)
         logging.info(f"✅ Creados {len(chunks)} chunks")
-        
-        # 3. Crear documentos de LangChain
-        documents = []
-        filename = myBlob.name.split('/')[-1]  # Extraer solo el nombre
-        
+
+        search_client = SearchClient(
+            endpoint=search_endpoint,
+            index_name=index_name,
+            credential=AzureKeyCredential(search_key),
+        )
+
+        search_docs = []
         for i, chunk in enumerate(chunks):
-            doc = Document(
-                page_content=chunk,
-                metadata={
-                    "source": filename,
-                    "chunk_id": i,
+            search_docs.append({
+                "id":      f"{document_id}-chunk-{i}",
+                "content": chunk,
+                "metadata": json.dumps({
+                    "source":       filename,
+                    "chunk_id":     i,
                     "total_chunks": len(chunks),
-                    "type": "uploaded_document",
-                    "uploaded_at": datetime.utcnow().isoformat()
-                }
-            )
-            documents.append(doc)
-        
-        # 4. Configurar embeddings
-        logging.info("🔧 Configurando embeddings...")
-        embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-            model_kwargs={"device": "cpu"}
-        )
-        
-        # 5. Indexar en Azure AI Search
-        logging.info("🔍 Indexando en Azure AI Search...")
-        vector_store = AzureSearch(
-            azure_search_endpoint=os.environ["AZURE_SEARCH_ENDPOINT"],
-            azure_search_key=os.environ["AZURE_SEARCH_KEY"],
-            index_name=os.environ.get("AZURE_SEARCH_INDEX", "travel-docs"),
-            embedding_function=embeddings.embed_query
-        )
-        
-        vector_store.add_documents(documents)
-        logging.info(f"✅ {len(documents)} documentos indexados en Azure AI Search")
-        
-        # 6. Actualizar estado en Cosmos DB
-        # Extraer el documentId del nombre del archivo (formato: {uuid}-{filename})
-        document_id = filename.split('-')[0] if '-' in filename else filename
-        
-        cosmos_update = {
-            "id": document_id,
-            "documentId": document_id,
-            "filename": filename,
-            "indexed": True,
-            "indexedAt": datetime.utcnow().isoformat(),
-            "totalChunks": len(chunks)
-        }
-        
-        outputDocument.set(func.Document.from_dict(cosmos_update))
-        logging.info(f"✅ Cosmos DB actualizado: {document_id}")
-        
+                    "type":         "uploaded_document",
+                    "uploaded_at":  uploaded_at,
+                }),
+            })
+
+        total_uploaded = 0
+        for start in range(0, len(search_docs), 100):
+            batch = search_docs[start:start + 100]
+            result = search_client.upload_documents(documents=batch)
+            total_uploaded += sum(1 for r in result if r.succeeded)
+
+        logging.info(f"✅ {total_uploaded}/{len(search_docs)} chunks subidos a Azure AI Search")
+
+        # Actualizar Cosmos DB directamente con pymongo
+        if mongo_uri:
+            try:
+                client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
+                db = client["chatbot"]
+                db["documents"].update_one(
+                    {"documentId": document_id},
+                    {"$set": {
+                        "indexed":     True,
+                        "indexedAt":   uploaded_at,
+                        "totalChunks": len(chunks),
+                        "status":      "indexed",
+                    }},
+                    upsert=False
+                )
+                client.close()
+                logging.info(f"✅ Cosmos DB actualizado: documentId={document_id}")
+            except Exception as e:
+                logging.warning(f"⚠️ No se pudo actualizar Cosmos DB: {e}")
+        else:
+            logging.warning("⚠️ CosmosDBConnection no configurada, se omite actualización")
+
         logging.info("=" * 60)
         logging.info(f"✅ INDEXACIÓN COMPLETADA: {filename}")
-        logging.info(f"   - Chunks creados: {len(chunks)}")
-        logging.info(f"   - Estado en Cosmos DB: indexed=True")
+        logging.info(f"   Chunks creados:  {len(chunks)}")
+        logging.info(f"   Chunks subidos:  {total_uploaded}")
         logging.info("=" * 60)
-        
+
     except Exception as e:
         logging.error(f"❌ ERROR en indexación: {str(e)}")
         logging.exception(e)
-        
-        # Intentar marcar como error en Cosmos DB
-        try:
-            document_id = myBlob.name.split('/')[-1].split('-')[0]
-            cosmos_error = {
-                "id": document_id,
-                "documentId": document_id,
-                "indexed": False,
-                "error": str(e),
-                "errorAt": datetime.utcnow().isoformat()
-            }
-            outputDocument.set(func.Document.from_dict(cosmos_error))
-        except:
-            pass
-        
+
+        if mongo_uri:
+            try:
+                client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
+                db = client["chatbot"]
+                db["documents"].update_one(
+                    {"documentId": document_id},
+                    {"$set": {"indexed": False, "error": str(e), "status": "error"}},
+                    upsert=False
+                )
+                client.close()
+            except Exception:
+                pass
         raise

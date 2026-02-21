@@ -7,15 +7,6 @@
       "direction": "in",
       "path": "documents/{name}",
       "connection": "AzureWebJobsStorage"
-    },
-    {
-      "name": "outputDocument",
-      "type": "cosmosDB",
-      "direction": "out",
-      "databaseName": "chatbot",
-      "collectionName": "documents",
-      "createIfNotExists": false,
-      "connectionStringSetting": "CosmosDBConnection"
     }
   ]
 }
