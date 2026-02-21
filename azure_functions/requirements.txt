@@ -13,5 +13,6 @@ langchain-community
 langchain-text-splitters
 
 # --- Utilidades ---
+pymongo
 python-dotenv
 requests

@@ -197,13 +197,13 @@ SPEECH_REGION=$LOCATION
 # ============================================
 # AZURE BLOB STORAGE (Documentos)
 # ============================================
-AZURE_STORAGE_CONNECTION_STRING=$STORAGE_CONNECTION
+AZURE_STORAGE_CONNECTION_STRING="$STORAGE_CONNECTION"
 AZURE_STORAGE_ACCOUNT_NAME=$STORAGE_ACCOUNT
 
 # ============================================
 # AZURE APPLICATION INSIGHTS (Telemetría)
 # ============================================
-APPINSIGHTS_CONNECTION_STRING=$APPINSIGHTS_CONNECTION
+APPINSIGHTS_CONNECTION_STRING="$APPINSIGHTS_CONNECTION"
 APPINSIGHTS_INSTRUMENTATION_KEY=$APPINSIGHTS_KEY
 
 # ============================================

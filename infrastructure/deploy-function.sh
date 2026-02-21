@@ -116,8 +116,6 @@ if [ ${#MISSING_FILES[@]} -gt 0 ]; then
     echo "       ├── __init__.py"
     echo "       └── function.json"
     echo ""
-    echo "   Ejecuta para reorganizar:"
-    echo "   ./reorganize-functions.sh"
     exit 1
 fi
 

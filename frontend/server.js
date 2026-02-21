@@ -503,7 +503,7 @@ app.post("/admin/upload-document", verifyAdminToken, upload.single('file'), asyn
     const filename = `${documentId}-${req.file.originalname}`;
     
     const containerClient = blobServiceClient.getContainerClient("documents");
-    await containerClient.createIfNotExists({ access: 'blob' });
+    await containerClient.createIfNotExists();
     
     const blockBlobClient = containerClient.getBlockBlobClient(filename);
     await blockBlobClient.upload(req.file.buffer, req.file.buffer.length);
