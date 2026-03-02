@@ -12,7 +12,7 @@ Chatbot conversacional nivel enterprise con inteligencia artificial que utiliza 
 ## Características Principales
 
 - 🔍 **Búsqueda semántica (Azure AI Search)** — Vector search + hybrid search  
-- 🧠 **IA conversacional (Hugging Face Mistral 7B)** — Modelo state-of-the-art  
+- 🧠 **IA conversacional (Hugging Face Llama 8B)** — Modelo state-of-the-art  
 - 🎤 **Speech-to-Text (Azure Speech)** — Entrada por voz, manos libres  
 - 🗣️ **Text-to-Speech (Azure Speech)** — Respuestas auditivas en español argentino  
 - 💾 **Historial persistente (Cosmos DB)** — Base de datos NoSQL serverless  
@@ -43,7 +43,7 @@ Azure App Service Node.js (Express)
 ├─> Azure Key Vault (secrets)
 └─> Azure App Service Python (FastAPI + RAG)
           ↓
-    ├─> Hugging Face (Mistral 7B)
+    ├─> Hugging Face (Llama 8B)
     └─> Azure AI Search (vector database)
           ↓
     Azure Function (auto-indexación)
@@ -76,7 +76,7 @@ Azure App Service Node.js (Express)
 
 - **FastAPI** — API de alto rendimiento  
 - **LangChain** — Framework para aplicaciones con LLMs  
-- **Hugging Face Hub** — Acceso a modelos (Mistral 7B)  
+- **Hugging Face Hub** — Acceso a modelos (Llama 8B)  
 - **Azure AI Search SDK** — Búsqueda vectorial híbrida  
 - **Sentence Transformers** — Embeddings multilingües  
 - **Gunicorn + Uvicorn** — Production ASGI server
@@ -94,7 +94,7 @@ Azure App Service Node.js (Express)
 
 ### IA y Machine Learning
 
-- **Hugging Face Mistral 7B** — Modelo de lenguaje de 7B parámetros  
+- **Hugging Face Llama 8B** — Modelo de lenguaje de 7B parámetros  
 - **paraphrase-multilingual-MiniLM** — Embeddings para español  
 
 ---

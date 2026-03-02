@@ -96,13 +96,13 @@ if not USE_LOCAL_EMBEDDINGS:
 # LLM
 # ======================
 hf_client = InferenceClient(
-    model="mistralai/Mistral-7B-Instruct-v0.2",
+    model="meta-llama/Llama-3.1-8B-Instruct",
     token=HUGGINGFACE_API_KEY
 )
 
 
-def call_mistral(prompt: str) -> str:
-    """Llama al modelo Mistral."""
+def call_Llama(prompt: str) -> str:
+    """Llama al modelo LLAMA."""
     try:
         response = hf_client.chat_completion(
             messages=[{"role": "user", "content": prompt}],
@@ -111,7 +111,7 @@ def call_mistral(prompt: str) -> str:
         )
         return response.choices[0].message["content"]
     except Exception as e:
-        logger.error(f"Error llamando a Mistral: {e}")
+        logger.error(f"Error llamando a Llama: {e}")
         return "Lo siento, hubo un error. Contacta por WhatsApp 221 316 0988."
 
 
@@ -182,8 +182,8 @@ async def ask_question(q: Question):
             question=q.question
         )
         
-        # Llamar a Mistral
-        answer = call_mistral(full_prompt)
+        # Llamar a Llama
+        answer = call_Llama(full_prompt)
         
         return Answer(answer=answer)
 
